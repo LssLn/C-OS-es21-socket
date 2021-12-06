@@ -32,8 +32,8 @@ if (sock<0) {
 perror("opening stream socket");
 exit(1);
 }
-/* name socket using wildcards*/
-/* find out assigned port number and print it out*/
+/* assegna il nome alla socket via wildcards*/
+/* trova e stampa la porta assegnata */
 server.sin_family=AF_INET;
 server.sin_addr.s_addr=INADDR_ANY; 
 /* accetta richieste di connessione inviate a qualunque dei suoi
@@ -63,8 +63,7 @@ una scorretta interpretazione del valore, converte lo
 short int dalla rappresentazione di rete a quella
 dell’host*/
 printf("Socket port #%d\n",ntohs(server.sin_port));
-/* start accepting connections and initializes the queue
-for pending connection requests from multiple clients*/
+/* inizia ad accettare connessioni e inizializza la coda per richieste di connessione in attesa da più clients */
 listen(sock,5); /* 5 è un valore tipico */
 do /* infinite loop */ {
     msgsock=accept(sock,(struct sockaddr*)0,(int*)0); 
