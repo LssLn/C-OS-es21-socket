@@ -9,16 +9,16 @@
 #define DIMMSG 160
 #define DIMUTENTE 30
 
-struct dati {			
-	int idmsg;		
-	char messaggio[DIMMSG];	
-	char utente[DIMUTENTE];	
+struct dati {			//definiamo una struttura dati condivisa tra i vari thread
+	int idmsg;		//id del messaggio viene incrementato di volta in volta
+	char messaggio[DIMMSG];	//contiene il testo del messaggio
+	char utente[DIMUTENTE];	//contiene il nome utente del mittente
 };
 
-struct dati messaggio;	
-pthread_mutex_t mutex;	
+struct dati messaggio;	//istanziamo una variabile globale che condivideranno tutti i worker thread
+pthread_mutex_t mutex;	//gestiamo l'accesso con un mutex
 
-void *worker_thread(void *args);	
+void *worker_thread(void *args);	//definiamo la funzione del thread che verrà eseguito
 
 int main(){	
 	int servsock, clisock;
@@ -34,18 +34,18 @@ int main(){
    	strcpy(messaggio.utente, "Server");
 
 	/*Creazione socket */
-	servsock = socket(AF_INET, SOCK_STREAM, 0); 
+	servsock = socket(AF_INET, SOCK_STREAM, 0); //facciamo un controllo
 	if(servsock == -1) {
         	perror("Errore creazione socket");
         	exit(1);
     	}
 	
 	baddr.sin_family = AF_INET;
-	baddr.sin_port = htons(7777);	
+	baddr.sin_port = htons(7777);	//host to network shorts
 	baddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	//assegnamo un indirizzo con bind
-	if(bind(servsock, (struct sockaddr *)&baddr, sizeof(baddr))==-1){ 
+	if(bind(servsock, (struct sockaddr *)&baddr, sizeof(baddr))==-1){ //facciamo il controllo
 		perror("Errore bind");
         	close(servsock);
         	exit(1);
@@ -82,11 +82,11 @@ int main(){
 
 void *worker_thread(void *args){			//inizio del worker thread
 	int sock;
-	char buff[200];	
-	char utente[DIMUTENTE];
+	char buff[200];	//buff è una variabile utilizzata temporaneamente per la lettura/scrittura sul socket
+	char utente[DIMUTENTE];//Questa stringa locale mantiene il nome utente passato con la register
 	size_t len;	
 
-	sock = (*(int *)args); 
+	sock = (*(int *)args); //prima faccio un casting ad int, ottengo un puntatore ad intero e io voglio il valore dell'intero quindi metto un altro asterisco
 	while(1){
 		len = read(sock, (void *)buff, 199); 
 		if(len > 0){
@@ -101,19 +101,27 @@ void *worker_thread(void *args){			//inizio del worker thread
 
 		/* Controlliamo quale comando è arrivato */
 		 if(len >= 9 && strncmp(buff, "register ", 9) == 0) {
+            /* Se è arrivato register vuol dire che la parte successiva è il nome utente
+             * questo lo andiamo a copiare nella variabile utente*/
             strcpy(utente, &buff[9]);
             fflush(stdout);
+            /* snprintf scrive l'output di una printf in una stringa ( massimo n caratteri ) */
             snprintf(buff, 200, "\nWelcome %s!\n", utente);
+            /* inviamo la risposta */
             write(sock, (void *)buff, strlen(buff));
         } else if(len >= 4 && strncmp(buff, "read", 4) == 0) {
-            
+            /* Quando arriva read dobbiamo accedere alla variabile condivisa per
+             * creare la stringa di risposta... si utilizzano i mutex per proteggere
+             * l'accesso in sezione critica */
             pthread_mutex_lock(&mutex);
             snprintf(buff, 200, "\n%d %s: %s\n", messaggio.idmsg, 
                     messaggio.utente, messaggio.messaggio);
             pthread_mutex_unlock(&mutex);
             write(sock, (void *)buff, strlen(buff));
         } else if(len >= 5 && strncmp(buff, "send ", 5) == 0) {
-            
+            /* Quando arriva send dobbiamo scrivere il messaggio nella variabile
+             * condivisa il messaggio è la stringa dopo send<spazio> quindi
+             * copiamo solo a partire dal carattere di indice 5 */
             pthread_mutex_lock(&mutex);
             strcpy(messaggio.messaggio, &buff[5]);
             strcpy(messaggio.utente, utente);
@@ -122,6 +130,7 @@ void *worker_thread(void *args){			//inizio del worker thread
             snprintf(buff, 200, "\nok\n");
             write(sock, (void *)buff, strlen(buff));
         } else if(len >= 5 && strncmp(buff, "close", 5) == 0) {
+            /* Nel caso di close interrompiamo il ciclo */
             break;
         } else {
             snprintf(buff, 200, "\nComando non riconoscito!\n");
