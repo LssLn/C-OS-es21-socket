@@ -3,6 +3,6 @@ Il programma crea una socket e da il via ad un loop infinito. Ad ogni iterazione
 
 Il server stampa i contenuti trasmessi via socket dal client.
 
-Ci sono 2 versioni della stessa tipologia:
+Ci sono 2 versioni della stessa tipologia client-server socket:
   - socket_client & socket_server
   - socket_client2 & socket_server2
